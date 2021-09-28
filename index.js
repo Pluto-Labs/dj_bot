@@ -83,6 +83,7 @@ async function execute(message, serverQueue) {
       queueContruct.connection = connection;
       queueContruct.connection.voice.setSelfDeaf(true);
       play(message.guild, queueContruct.songs[0]);
+      message.channel.send("**Playing** 🎶 `"+queueContruct.songs[0].title+"` - Now!");
     } catch (err) {
       console.log(err);
       queue.delete(message.guild.id);
@@ -110,26 +111,26 @@ async function execute(message, serverQueue) {
 function getQueue(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
-      "Você tem que estar em um canal de voz para parar a música!"
+      "You have to be in a voice channel to stop the music!"
     );
   if (!serverQueue)
-    return message.channel.send("Não há música na queue!");
+    return message.channel.send("There is no song in queue!");
 
   const currentSong = serverQueue.songs[0]
 
-  const thumbnail = await youtubeThumbnail(currentSong.url)
+  const thumbnail = youtubeThumbnail(currentSong.url)
 
   const queueList = []
-  const queueNext = ''
+  var queueNext = ''
 
   serverQueue.songs.forEach((song, index) => {
     if(index === 0) {
-      queueList.push({ name: 'Now Playing:', value: `[${song.title}](${song.url})`, inline: false  })
+      queueList.push({ name: '__*Now Playing:*__', value: `[${song.title}](${song.url})`, inline: false  })
     } else {
       queueNext = queueNext.concat("`"+index+".` ["+song.title+"]("+song.url+") \n\n")
     }
     if (index+1 === serverQueue.songs.length) {
-      queueList.push({ name: 'Up Next:', value: queueNext, inline: false })
+      queueList.push({ name: '__*Up Next:*__', value: queueNext, inline: false })
     }
   });
 
@@ -145,10 +146,10 @@ function getQueue(message, serverQueue) {
 function skip(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
-      "Você tem que estar em um canal de voz para parar a música!"
+      "You have to be in a voice channel to stop the music!"
     );
   if (!serverQueue)
-    return message.channel.send("Não há música que eu possa pular!");
+    return message.channel.send("There is no song that I could skip!");
   message.channel.send("⏩ Skipped 👍")
   serverQueue.connection.dispatcher.end();
 }
@@ -156,11 +157,11 @@ function skip(message, serverQueue) {
 function stop(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
-      "Você tem que estar em um canal de voz para parar a música!"
+      "You have to be in a voice channel to stop the music!"
     );
 
   if (!serverQueue)
-    return message.channel.send("Não há música que eu possa parar!");
+    return message.channel.send("There is no song that I could stop!");
 
   serverQueue.songs = [];
   serverQueue.connection.dispatcher.end();
@@ -173,8 +174,6 @@ function play(guild, song) {
     queue.delete(guild.id);
     return;
   }
-
-  serverQueue.textChannel.send("**Playing** 🎶 `"+song.title+"` - Now!");
 
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url))
