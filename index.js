@@ -99,7 +99,7 @@ async function execute(message, serverQueue) {
       .setThumbnail(thumbnail.default.url)
       .setAuthor('Added to queue')
       .addFields(
-        { name: 'Position in queue', value: serverQueue.songs.length, inline: true },
+        { name: 'Position in queue', value: serverQueue.songs.length, inline: false },
       )
     serverQueue.songs.push(song)
     message.channel.send("**Searching** 🔎 `"+song.url+"`");
@@ -158,6 +158,8 @@ function play(guild, song) {
     return;
   }
 
+  serverQueue.textChannel.send("**Playing** 🎶 `"+song.title+"` - Now!");
+
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url))
     .on("finish", () => {
@@ -166,7 +168,6 @@ function play(guild, song) {
     })
     .on("error", error => console.error(error));
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-  serverQueue.textChannel.send("**Playing** 🎶 `"+song.title+"` - Now!");
 }
 
 client.login(token);
