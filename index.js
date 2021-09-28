@@ -38,7 +38,10 @@ client.on("message", async message => {
   } else if (message.content.startsWith(`${prefix}queue`)) {
     getQueue(message, serverQueue);
     return;
-  } /*else {
+  } else if (message.content.startsWith(`${prefix}remove`)) {
+    remove(message, serverQueue)
+  }
+  /*else {
     message.channel.send("Você precisa inserir um comando válido!");
   }*/
 });
@@ -106,6 +109,25 @@ async function execute(message, serverQueue) {
     message.channel.send("**Searching** 🔎 `"+song.url+"`");
     message.channel.send(messageEmbed)
   }
+}
+
+function remove(message, serverQueue) {
+  if (!message.member.voice.channel)
+    return message.channel.send(
+      "You have to be in a voice channel to remove the music!"
+    );
+  if (!serverQueue)
+    return message.channel.send("There is no song in queue to remove!");
+
+  const args = message.content.split(" ");
+  const indexToRemove = parseInt(args[1])
+  
+  if(indexToRemove <= serverQueue.songs.length && indexToRemove != 0) {
+    const songToRemove = serverQueue.songs[indexToRemove] 
+    serverQueue.songs = serverQueue.songs.filter((song, index) => index !== indexToRemove)
+    message.channel.send("✅ Removed `"+songToRemove.title+"`")
+  }
+
 }
 
 function getQueue(message, serverQueue) {
@@ -178,6 +200,13 @@ function play(guild, song) {
   const dispatcher = serverQueue.connection
     .play(ytdl(song.url))
     .on("finish", () => {
+
+      if(serverQueue.voiceChannel.members.size <= 1) {
+        serverQueue.voiceChannel.leave();
+        queue.delete(guild.id);
+        return;
+      }
+
       serverQueue.songs.shift();
       play(guild, serverQueue.songs[0]);
     })
