@@ -1,6 +1,8 @@
 const Discord = require("discord.js");
-const { prefix, token } = require("./config.json");
+require('dotenv').config()
+const { prefix, token } = process.env;
 const ytdl = require("ytdl-core");
+const youtubeThumbnail = require('youtube-thumbnail');
 
 const client = new Discord.Client();
 
@@ -33,9 +35,12 @@ client.on("message", async message => {
   } else if (message.content.startsWith(`${prefix}stop`)) {
     stop(message, serverQueue);
     return;
-  } else {
+  } else if (message.content.startsWith(`${prefix}queue`)) {
+    getQueue(message, serverQueue);
+    return;
+  } /*else {
     message.channel.send("Você precisa inserir um comando válido!");
-  }
+  }*/
 });
 
 async function execute(message, serverQueue) {
@@ -84,9 +89,41 @@ async function execute(message, serverQueue) {
       return message.channel.send(err);
     }
   } else {
-    serverQueue.songs.push(song);
-    return message.channel.send(`${song.title} foi adicionado à fila!`);
+
+    const thumbnail = await youtubeThumbnail(song.url)
+
+    const messageEmbed = new Discord.MessageEmbed()
+      .setColor('#0099ff')
+      .setTitle(song.title)
+      .setURL(song.url)
+      .setThumbnail(thumbnail.default.url)
+      .setAuthor('Added to queue')
+      .addFields(
+        { name: 'Position in queue', value: serverQueue.songs.length, inline: true },
+      )
+    serverQueue.songs.push(song)
+    message.channel.send("**Searching** 🔎 `"+song.url+"`");
+    message.channel.send(messageEmbed)
   }
+}
+
+function getQueue(message, serverQueue) {
+  if (!message.member.voice.channel)
+    return message.channel.send(
+      "Você tem que estar em um canal de voz para parar a música!"
+    );
+  if (!serverQueue)
+    return message.channel.send("Não há música na queue!");
+  
+  var queueList = '```'
+
+  serverQueue.songs.forEach((song, index) => {
+    queueList = queueList.concat(index + " - " + song.title+"\n")
+    if(index+1 === serverQueue.songs.length){
+      queueList = queueList.concat("```")
+      message.channel.send(queueList)
+    }
+  });
 }
 
 function skip(message, serverQueue) {
@@ -96,6 +133,7 @@ function skip(message, serverQueue) {
     );
   if (!serverQueue)
     return message.channel.send("Não há música que eu possa pular!");
+  message.channel.send("⏩ Skipped 👍")
   serverQueue.connection.dispatcher.end();
 }
 
@@ -128,7 +166,7 @@ function play(guild, song) {
     })
     .on("error", error => console.error(error));
   dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
-  serverQueue.textChannel.send(`Começa a tocar: **${song.title}**`);
+  serverQueue.textChannel.send("**Playing** 🎶 `"+song.title+"` - Now!");
 }
 
 client.login(token);
