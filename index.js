@@ -99,7 +99,7 @@ async function execute(message, serverQueue) {
       .setThumbnail(thumbnail.default.url)
       .setAuthor('Added to queue')
       .addFields(
-        { name: 'Position in queue', value: serverQueue.songs.length, inline: false },
+        { name: 'Position in queue', value: serverQueue.songs.length, inline: true },
       )
     serverQueue.songs.push(song)
     message.channel.send("**Searching** 🔎 `"+song.url+"`");
@@ -114,16 +114,32 @@ function getQueue(message, serverQueue) {
     );
   if (!serverQueue)
     return message.channel.send("Não há música na queue!");
-  
-  var queueList = '```'
+
+  const currentSong = serverQueue.songs[0]
+
+  const thumbnail = await youtubeThumbnail(currentSong.url)
+
+  const queueList = []
+  const queueNext = ''
 
   serverQueue.songs.forEach((song, index) => {
-    queueList = queueList.concat(index + " - " + song.title+"\n")
-    if(index+1 === serverQueue.songs.length){
-      queueList = queueList.concat("```")
-      message.channel.send(queueList)
+    if(index === 0) {
+      queueList.push({ name: 'Now Playing:', value: `[${song.title}](${song.url})`, inline: false  })
+    } else {
+      queueNext = queueNext.concat("`"+index+".` ["+song.title+"]("+song.url+") \n\n")
+    }
+    if (index+1 === serverQueue.songs.length) {
+      queueList.push({ name: 'Up Next:', value: queueNext, inline: false })
     }
   });
+
+  const messageEmbed = new Discord.MessageEmbed()
+    .setColor('#0099ff')
+    .setTitle("Queue now")
+    .setThumbnail(thumbnail.default.url)
+    .addFields(queueList)
+  
+  message.channel.send(messageEmbed)
 }
 
 function skip(message, serverQueue) {
