@@ -125,7 +125,7 @@ async function execute(message, serverQueue) {
     const thumbnail = await youtubeThumbnail(song.url)
 
     const songDuration = new Date(song.duration * 1000).toISOString().substr(14, 5)
-    const estimatedSecondsToPlay = serverQueue.songs.map(song => song.duration).reduce((acc, curr) => parseInt(acc) + parseInt(curr))
+    const estimatedSecondsToPlay = serverQueue.songs.map(song => song.duration).reduce((acc, curr) => parseInt(acc) + parseInt(curr) ,0)
     const estimatedTimeToPlay = new Date(estimatedSecondsToPlay * 1000).toISOString().substr(14, 5)
 
     const messageEmbed = new Discord.MessageEmbed()
