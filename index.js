@@ -1,71 +1,99 @@
-const Discord = require("discord.js");
+const Discord = require("discord.js")
 require('dotenv').config()
-const { prefix, token } = process.env;
-const ytdl = require("ytdl-core");
-const youtubeThumbnail = require('youtube-thumbnail');
+const { prefix, token } = process.env
+const ytdl = require("ytdl-core-discord")
+const youtubeThumbnail = require('youtube-thumbnail')
+const player = require('discordjs-ytdl-advanced')
 
-const client = new Discord.Client();
+const client = new Discord.Client()
 
-const queue = new Map();
+const queue = new Map()
 
 client.once("ready", () => {
-  console.log("Ready!");
-});
+  console.log("Ready!")
+})
 
 client.once("reconnecting", () => {
-  console.log("Reconnecting!");
-});
+  console.log("Reconnecting!")
+})
 
 client.once("disconnect", () => {
-  console.log("Disconnect!");
-});
+  console.log("Disconnect!")
+})
 
 client.on("message", async message => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith(prefix)) return;
+  if (message.author.bot) return
+  if (!message.content.startsWith(prefix)) return
 
-  const serverQueue = queue.get(message.guild.id);
+  const serverQueue = queue.get(message.guild.id)
 
   if (message.content.startsWith(`${prefix}play`)) {
-    execute(message, serverQueue);
-    return;
+    execute(message, serverQueue)
+    return
   } else if (message.content.startsWith(`${prefix}skip`)) {
-    skip(message, serverQueue);
-    return;
+    skip(message, serverQueue)
+    return
   } else if (message.content.startsWith(`${prefix}stop`)) {
-    stop(message, serverQueue);
-    return;
+    stop(message, serverQueue)
+    return
   } else if (message.content.startsWith(`${prefix}queue`)) {
-    getQueue(message, serverQueue);
-    return;
+    getQueue(message, serverQueue)
+    return
   } else if (message.content.startsWith(`${prefix}remove`)) {
     remove(message, serverQueue)
+  } else if (message.content.startsWith(`${prefix}shuffle`)) {
+    shuffle(message, serverQueue)
   }
   /*else {
-    message.channel.send("Você precisa inserir um comando válido!");
+    message.channel.send("Você precisa inserir um comando válido!")
   }*/
-});
+})
 
 async function execute(message, serverQueue) {
-  const args = message.content.split(" ");
+  const args = message.content.split(" ")
 
-  const voiceChannel = message.member.voice.channel;
+  const voiceChannel = message.member.voice.channel
   if (!voiceChannel)
     return message.channel.send(
-      "Você precisa estar em um canal de voz para tocar música!"
-    );
-  const permissions = voiceChannel.permissionsFor(message.client.user);
+      "You need to be in a voice channel to play music!"
+    )
+  const permissions = voiceChannel.permissionsFor(message.client.user)
   if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
     return message.channel.send(
-      "Preciso das permissões para entrar e falar no seu canal de voz!"
-    );
+      "I need the permissions to join and speak in your voice channel!"
+    )
   }
 
-  const songInfo = await ytdl.getInfo(args[1]);
-  const song = {
-    title: songInfo.videoDetails.title,
-    url: songInfo.videoDetails.video_url,
-  };
+  var songInfo
+  var song = {}
+  var toSearch
+
+  if (!args[1].includes('youtube.com')) {
+
+    if(args.length <= 2){
+      toSearch = args[1]
+    } else {
+      toSearch = args.filter((arg, index) => index > 0).join(' ')
+    }
+    
+    songInfo = await player(toSearch)
+    const { data } = songInfo
+
+    song = {
+      title: data.title,
+      url: data.url,
+      channel: data.author.name,
+      duration: data.seconds,
+    }
+  } else {
+    songInfo = await ytdl.getInfo(args[1])
+    song = {
+      title: songInfo.videoDetails.title,
+      url: songInfo.videoDetails.video_url,
+      channel: songInfo.videoDetails.ownerChannelName,
+      duration: songInfo.videoDetails.lengthSeconds,
+    }
+  }
 
   if (!serverQueue) {
     const queueContruct = {
@@ -75,26 +103,30 @@ async function execute(message, serverQueue) {
       songs: [],
       volume: 5,
       playing: true
-    };
+    }
 
-    queue.set(message.guild.id, queueContruct);
+    queue.set(message.guild.id, queueContruct)
 
-    queueContruct.songs.push(song);
+    queueContruct.songs.push(song)
 
     try {
-      var connection = await voiceChannel.join();
-      queueContruct.connection = connection;
-      queueContruct.connection.voice.setSelfDeaf(true);
-      play(message.guild, queueContruct.songs[0]);
-      message.channel.send("**Playing** 🎶 `"+queueContruct.songs[0].title+"` - Now!");
+      var connection = await voiceChannel.join()
+      queueContruct.connection = connection
+      queueContruct.connection.voice.setSelfDeaf(true)
+      play(message.guild, queueContruct.songs[0])
+      message.channel.send("**Playing** 🎶 `"+queueContruct.songs[0].title+"` - Now!")
     } catch (err) {
-      console.log(err);
-      queue.delete(message.guild.id);
-      return message.channel.send(err);
+      console.log(err)
+      queue.delete(message.guild.id)
+      return message.channel.send(err)
     }
   } else {
 
     const thumbnail = await youtubeThumbnail(song.url)
+
+    const songDuration = new Date(song.duration * 1000).toISOString().substr(14, 5)
+    const estimatedSecondsToPlay = serverQueue.songs.map(song => song.duration).reduce((acc, curr) => parseInt(acc) + parseInt(curr))
+    const estimatedTimeToPlay = new Date(estimatedSecondsToPlay * 1000).toISOString().substr(14, 5)
 
     const messageEmbed = new Discord.MessageEmbed()
       .setColor('#0099ff')
@@ -103,23 +135,40 @@ async function execute(message, serverQueue) {
       .setThumbnail(thumbnail.default.url)
       .setAuthor('Added to queue')
       .addFields(
+        { name: 'Channel', value: song.channel, inline: true },
+        { name: 'Song Duration', value: songDuration, inline: true },
+        { name: 'Estimated time until playing', value: estimatedTimeToPlay, inline: true },
         { name: 'Position in queue', value: serverQueue.songs.length, inline: true },
       )
     serverQueue.songs.push(song)
-    message.channel.send("**Searching** 🔎 `"+song.url+"`");
+    message.channel.send("**Searching** 🔎 `"+toSearch+"`")
     message.channel.send(messageEmbed)
   }
+}
+
+function shuffle(message, serverQueue) {
+  if (!message.member.voice.channel)
+    return message.channel.send(
+      "You have to be in a voice channel to shuffle the queue!"
+    )
+  if (!serverQueue || serverQueue.songs.length <= 1)
+    return message.channel.send("There is no song in queue to shuffle!")
+
+  const playingNow = serverQueue.songs[0]
+  const shuffledList = serverQueue.songs.filter((song, index) => index > 0).sort(() => Math.random() - 0.5)
+  serverQueue.songs = [playingNow].concat(shuffledList)
+  message.channel.send("🔀 Shuffled 👍")
 }
 
 function remove(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
       "You have to be in a voice channel to remove the music!"
-    );
-  if (!serverQueue)
-    return message.channel.send("There is no song in queue to remove!");
+    )
+  if (!serverQueue || serverQueue.songs.length <= 1)
+    return message.channel.send("There is no song in queue to remove!")
 
-  const args = message.content.split(" ");
+  const args = message.content.split(" ")
   const indexToRemove = parseInt(args[1])
   
   if(indexToRemove <= serverQueue.songs.length && indexToRemove != 0) {
@@ -134,9 +183,9 @@ function getQueue(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
       "You have to be in a voice channel to stop the music!"
-    );
-  if (!serverQueue)
-    return message.channel.send("There is no song in queue!");
+    )
+  if (!serverQueue || serverQueue.songs.length <= 1)
+    return message.channel.send("There is no song in queue!")
 
   const currentSong = serverQueue.songs[0]
 
@@ -154,7 +203,7 @@ function getQueue(message, serverQueue) {
     if (index+1 === serverQueue.songs.length) {
       queueList.push({ name: '__*Up Next:*__', value: queueNext, inline: false })
     }
-  });
+  })
 
   const messageEmbed = new Discord.MessageEmbed()
     .setColor('#0099ff')
@@ -169,49 +218,49 @@ function skip(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
       "You have to be in a voice channel to stop the music!"
-    );
+    )
   if (!serverQueue)
-    return message.channel.send("There is no song that I could skip!");
+    return message.channel.send("There is no song that I could skip!")
   message.channel.send("⏩ Skipped 👍")
-  serverQueue.connection.dispatcher.end();
+  serverQueue.connection.dispatcher.end()
 }
 
 function stop(message, serverQueue) {
   if (!message.member.voice.channel)
     return message.channel.send(
       "You have to be in a voice channel to stop the music!"
-    );
+    )
 
   if (!serverQueue)
-    return message.channel.send("There is no song that I could stop!");
+    return message.channel.send("There is no song that I could stop!")
 
-  serverQueue.songs = [];
-  serverQueue.connection.dispatcher.end();
+  serverQueue.songs = []
+  serverQueue.connection.dispatcher.end()
 }
 
-function play(guild, song) {
-  const serverQueue = queue.get(guild.id);
+async function play(guild, song) {
+  const serverQueue = queue.get(guild.id)
   if (!song) {
-    serverQueue.voiceChannel.leave();
-    queue.delete(guild.id);
-    return;
+    serverQueue.voiceChannel.leave()
+    queue.delete(guild.id)
+    return
   }
 
   const dispatcher = serverQueue.connection
-    .play(ytdl(song.url))
+    .play(await ytdl(song.url, { filter: "audioonly" } ), { type: 'opus' })
     .on("finish", () => {
 
       if(serverQueue.voiceChannel.members.size <= 1) {
-        serverQueue.voiceChannel.leave();
-        queue.delete(guild.id);
-        return;
+        serverQueue.voiceChannel.leave()
+        queue.delete(guild.id)
+        return
       }
 
-      serverQueue.songs.shift();
-      play(guild, serverQueue.songs[0]);
+      serverQueue.songs.shift()
+      play(guild, serverQueue.songs[0])
     })
-    .on("error", error => console.error(error));
-  dispatcher.setVolumeLogarithmic(serverQueue.volume / 5);
+    .on("error", error => console.error(error))
+  dispatcher.setVolumeLogarithmic(serverQueue.volume / 5)
 }
 
-client.login(token);
+client.login(token)
