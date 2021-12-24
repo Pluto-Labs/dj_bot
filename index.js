@@ -81,11 +81,15 @@ async function execute(message, serverQueue) {
       console.time("YOUTUBE")
       songInfo = await ytdl.getInfo(args[1])
 
+      const { videoDetails } = songInfo
+
+      toSearch = videoDetails.video_url
+
       song = {
-        title: songInfo.videoDetails.title,
-        url: songInfo.videoDetails.video_url,
-        channel: songInfo.videoDetails.ownerChannelName,
-        duration: songInfo.videoDetails.lengthSeconds,
+        title: videoDetails.title,
+        url: videoDetails.video_url,
+        channel: videoDetails.ownerChannelName,
+        duration: videoDetails.lengthSeconds,
       }
       console.timeEnd("YOUTUBE")
       console.log("song (youtube) === ", song)
