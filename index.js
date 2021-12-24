@@ -34,7 +34,7 @@ client.on("message", async message => {
   } else if (message.content.startsWith(`${prefix}skip`)) {
     skip(message, serverQueue)
     return
-  } else if (message.content.startsWith(`${prefix}stop`)) {
+  } else if (message.content.startsWith(`${prefix}stop`) || message.content.startsWith(`${prefix}leave`)) {
     stop(message, serverQueue)
     return
   } else if (message.content.startsWith(`${prefix}queue`)) {
